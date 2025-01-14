@@ -1,0 +1,106 @@
+#!/bin/tcsh
+
+
+# Define variables at the beginning
+set phonopy = "pre"  # pre, post, thermal, or qha
+set comp = "MOF-5"  # Replace with the actual compound name
+
+# Define additional variables for pre-processing
+set cell = "prim"  # prim or conv
+set s1 = "2"  # Replace with actual supercell size
+set s2 = "2"  # Replace with actual supercell size
+set s3 = "2"  # Replace with actual supercell size
+
+# Define the number of directories for post-processing
+set num = 19  # Replace with the actual number of directories
+
+# Define the number of thermal properties files for QHA
+set thermal_files_count = 9
+set temp = 980
+set pressure = 0
+
+# Define the FILES_VASP_DIR variable
+set FILES_VASP_DIR = "/user/j.santanaandreo/u12658/files_VASP/MOF-5"
+
+# Perform operations for pre-processing
+if ($phonopy == "pre") then
+   cp ../CONTCAR ./POSCAR
+   phonopy --symmetry --tolerance 0.0001 > sym_out
+
+   if ($cell == "prim") then
+      cp PPOSCAR POSCAR
+   else if ($cell == "conv") then
+      cp BPOSCAR POSCAR
+   else
+      echo "I don't understand"
+      exit
+   endif
+
+   phonopy -d --dim="$s1 $s2 $s3" > sc_out
+
+   # Count POSCAR files and create a directory for each one
+   set nPoscar = `ls POSCAR-* | wc -l`
+   mkdir 00
+   echo 00
+   cp SPOSCAR 00/POSCAR
+
+   # Move POSCAR files to respective directories
+   foreach i (`seq 1 $nPoscar`)
+      set folder = `printf "%02d" $i`
+      mkdir $folder
+      echo $folder
+      if ($i < 10) then
+         set prefix = "00"
+      else if ($i < 100) then
+         set prefix = "0"
+      else
+         set prefix = ""
+      endif
+      mv "POSCAR-$prefix$i" "$folder/POSCAR"
+   end
+
+   # Create symbolic links in each directory and submit jobs
+   foreach dir (`seq 0 $nPoscar`)
+      set folder = `printf "%02d" $dir`
+      cd $folder
+      cp $FILES_VASP_DIR/KPOINTS_SC ./KPOINTS
+      cp $FILES_VASP_DIR/INCAR_SC ./INCAR
+      cp $FILES_VASP_DIR/vasp.job .
+      cp $FILES_VASP_DIR/POTCAR .
+      # cp $FILES_VASP_DIR/BORN .
+      cd ..
+   end
+# Perform operations for post processing
+else if ($phonopy == "post") then
+
+   ## Set the variable for the command
+   set cmd = "phonopy -f"
+   ## Append the folder names to the end of the command
+   foreach i ( `seq 1 $num` )
+      set cmd = "$cmd $i/vasprun.xml"
+   end
+   echo "$cmd"
+   $cmd
+   cp $FILES_VASP_DIR/BORN .
+   phonopy -p -s $FILES_VASP_DIR/band-pdos.conf
+   phonopy -t -s $FILES_VASP_DIR/band-pdos.conf
+
+
+# Perform operations for thermal properties
+else if ($phonopy == "thermal") then
+   phonopy -t -p $FILES_VASP_DIR/band-pdos.conf
+
+# Perform operations for QHA
+else if ($phonopy == "qha") then
+   set cmd = "phonopy-qha -p -s --tmax=$temp --pressure=$pressure e-v.dat"
+   foreach i ( `seq -w 1 $thermal_files_count` )
+      set padded_i = `printf "%03d" $i`
+      set cmd = "$cmd thermal_properties-$padded_i.yaml"
+   end
+   echo "$cmd"
+   $cmd
+
+else
+   echo "I don't understand"
+endif
+
