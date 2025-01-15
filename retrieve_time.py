@@ -1,3 +1,29 @@
+"""
+This script processes a directory structure to calculate the computational time spent on
+different types of calculations using SLURM output files.
+
+Key Features:
+- Identifies directories as either optimization calculations or phonon calculations.
+- Distinguishes between two categories of phonon calculations:
+  - Phonon Main: SLURM files found directly in the phonon calculation directory.
+  - Phonon Sub: SLURM files found within numeric subdirectories (e.g., '00', '01', ..., '18').
+- Skips directories that start with 'old' or are irrelevant to the calculations.
+- Outputs the results in a human-readable summary format, saved to a file named 
+  'calculation_time_summary.txt'.
+
+Usage:
+- Place the script in the root directory to analyze.
+- Run the script: `python retrieve_time.py`.
+- The results will be saved in the same directory.
+
+Dependencies:
+- The script assumes that SLURM output files contain a line with computational time in 
+  the format: "Estimated Consumption: <value> core-hours".
+
+Output:
+- A summary of optimization and phonon calculation times for each relevant directory, 
+  separated into the Main and Sub categories for phonon calculations.
+"""
 import os
 import re
 
