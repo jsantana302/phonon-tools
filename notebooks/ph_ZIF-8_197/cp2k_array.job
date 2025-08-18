@@ -1,0 +1,21 @@
+#!/bin/bash
+#SBATCH --partition=standard96s
+#SBATCH --time=12:00:00
+#SBATCH --nodes=3
+#SBATCH --ntasks-per-node=48
+#SBATCH --cpus-per-task=2
+#SBATCH --array=1-69%4
+#SBATCH --requeue
+
+export PREFERRED_SOFTWARE_STACK=nhr-lmod
+source /sw/etc/profile/profile.sh
+module load cp2k/2024.1
+
+ulimit -s unlimited
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export SLURM_CPU_BIND=none
+
+i=$(printf "%02d" "$SLURM_ARRAY_TASK_ID")
+cd "$i" || exit 1
+inp=$(ls *.inp | head -n1)
+srun cp2k.psmp -i "$inp" > "${inp%.inp}.out"

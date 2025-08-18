@@ -1,3 +1,4 @@
+#!/user/j.santanaandreo/u12658/miniconda3/envs/aim2dat/bin/python
 """
 This script processes a directory structure to calculate the computational time spent on
 different types of calculations using SLURM output files.
@@ -24,6 +25,7 @@ Output:
 - A summary of optimization and phonon calculation times for each relevant directory, 
   separated into the Main and Sub categories for phonon calculations.
 """
+
 import os
 import re
 
