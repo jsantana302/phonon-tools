@@ -1,0 +1,13 @@
+#!/bin/tcsh
+
+echo "step 1, 2 or 3?"
+set step = $<
+
+foreach dir ( job-08  job-09  job-10  )
+   cd $dir
+   rm INCAR
+   ln -sf ../../INFILES/INCAR.$step .
+   mv INCAR.$step INCAR
+   sbatch vasp.job
+   cd ..
+end

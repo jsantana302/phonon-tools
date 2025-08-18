@@ -1,0 +1,25 @@
+# Set the terminal for saving the plot
+set terminal pngcairo enhanced size 1280,720   # Smaller PNG output
+set output "e_v_plot.png"                       # Output file name
+
+set datafile separator whitespace
+
+# Set larger fonts for labels, title, and tick marks
+set xlabel "Cell Volume [angstrom^3]" font ",12"
+set ylabel "Total Energy [a.u.]" font ",12"
+set title "Energy vs Volume" font ",14"
+set tics font ",10"
+
+# Display 4 decimal places on the Y-axis
+set format y "%.4f"
+
+# Optionally set axis ranges
+#set xrange [3800:5200]                            # Adjust range to fit your data
+#set yrange [-1189.1:-1188.7]                      # Adjust range to fit your data
+
+# Plot with lines and labels
+plot 'e-v-full.dat' skip 1 using 1:2 with lines title "Energy vs Volume", \
+     '' using 1:2:3 with labels font ",10" offset 1,1 notitle  # Smaller labels for tags
+
+unset output  # Close the output file
+

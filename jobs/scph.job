@@ -1,0 +1,25 @@
+#!/bin/bash
+#SBATCH -N 4
+#SBATCH --account=nip00065
+#SBATCH -p standard96
+#SBATCH -t 12:00:00
+
+# Set the temperature variable here
+TEMP=700
+
+module load impi/2021.7.1
+module load vasp/6.4.1
+
+export PATH="~/miniconda3/bin/conda:$PATH"
+source /home/nipj5103/miniconda3/etc/profile.d/conda.sh
+conda activate hiphive
+
+echo "Job started at : "`date` >> out-${TEMP}.dat
+~/miniconda3/envs/hiphive/bin/python /home/nipj5103/scripts/hiPhive_wrapper_IMAG_restart.py -m scph -c MAX -9 -4 -2 -2 --temp {10..700..10} --scph_alpha 0.1 --scph_niter 60 --scph_nstr 50 >> out-${TEMP}.dat 
+
+if [ $? -eq 0 ]; then
+  echo "Job completed successfully at : "`date` >> out-${TEMP}.dat
+else
+  echo "Warning: Job encountered an error at : "`date` >> out-${TEMP}.dat
+fi
+

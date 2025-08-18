@@ -1,0 +1,63 @@
+#!/bin/bash
+
+echo "Select the review type:"
+echo "1) Phonopy"
+echo "2) Hiphive"
+echo "3) Cleanup WAVECAR files"
+read -p "Enter your choice (1, 2 or 3): " choice
+
+case $choice in
+
+    1)
+        read -p "Enter the number of SC calculations for Phonopy: " num_sc
+        for i in $(seq 0 $((num_sc - 1))); do
+            folder=$(printf "%02d" $i)
+            cd "$folder" || continue
+            echo
+            echo "HEY! JOB -$folder"
+            #tail out.dat
+            #grep "free energy" OUTCAR | tail -n 1
+            #grep "reached" OUTCAR | tail -n 1
+            latest=$(ls slurm-*.out | sort -r -n -t - | head -n 1)
+            tail -n 50 "$latest"
+            cd ../
+        done
+        ;;
+    2)
+        read -p "Enter the number of jobs for Hiphive: " num_jobs
+        cd CALC || exit
+        for i in $(seq -f "%02g" 1 $num_jobs); do
+            cd "job-$i" || continue
+            echo ""
+            echo "This is job number $i"
+            tail out.dat
+            grep "free energy" OUTCAR | tail -n 1
+            grep "reached" OUTCAR | tail -n 1
+            latest=$(ls slurm-*.out | sort -r -n -t - | head -n 1)
+            cat "$latest"
+            cd ..
+        done
+        cd ..
+        ;;
+    3)
+        read -p "Enter the number of jobs for cleanup: " num_jobs
+        cd CALC || exit
+        for i in $(seq -f "%02g" 1 $num_jobs); do
+            cd "job-$i" || continue
+            if [ -f WAVECAR ]; then
+                echo "Removing WAVECAR file from job-$i..."
+                rm -f WAVECAR
+            else
+                echo "WAVECAR file not found in job-$i."
+            fi
+            cd ..
+        done
+        cd ..
+        ;;
+    *)
+        echo "Invalid choice. Exiting."
+        exit 1
+        ;;
+esac
+
+

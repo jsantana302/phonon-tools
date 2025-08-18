@@ -1,0 +1,84 @@
+#!/bin/tcsh
+
+# Activate the conda environment
+conda activate ~/miniconda3/envs/phonopyenv
+
+echo "create, temp, disp?"
+set mode = $<
+
+if ("$mode" == "create") then
+    echo "cutofs?"
+    set cut1 = $<:q
+    set cut2 = $<:q
+    set cut3 = $<:q
+    set cut4 = $<:q
+    set cut5 = $<:q
+
+    # Create a directory with the name including the cuts
+    mkdir SCPH_${cut1}_${cut2}_${cut3}_${cut4}_${cut5}
+
+    # Move into the created directory
+    cd SCPH_${cut1}_${cut2}_${cut3}_${cut4}_${cut5}
+
+    # Copy files from the parent directory
+    cp ~/scripts/scph.job .
+    cp ../SPOSCAR .
+    cp ../POSCAR .
+
+else if ("$mode" == "temp") then
+    # Copy Potential from the DIR of interest in the folder and the scph.job with the proper cutoffs
+    echo "Enter temperatures (space-separated):"
+    set temperature_input = $<:q
+
+    # Split the input into an array of temperatures
+    set temperatures = ($temperature_input)
+
+    foreach temperature ($temperatures)
+        set folder_name = "scph_${temperature}"
+
+        # Check if the folder already exists
+        if (-d "$folder_name") then
+            echo "Folder '$folder_name' already exists."
+        else
+            mkdir "$folder_name"
+            echo "Folder '$folder_name' created."
+        endif
+
+        echo "Entering folder: $folder_name"
+        cd $folder_name
+        cp -sf ../../SPOSCAR ../../POSCAR .
+        cp -sf ../Potential.fcp ../scph.job .
+
+        # Replace the TEMP variable in scph.job with the current temperature
+        sed -i "s/^TEMP.*/TEMP=${temperature}/" scph.job
+
+        sed -i "s|^minicondastart.*|~/miniconda3/envs/hiphive/bin/python /home/nipj5103/scripts/hiPhive_wrapper_IMAG_yuli.py -m scph -c MAX -9 -3 -1 -0 --temp {10..${temperature}..10} --scph_alpha 0.1 --scph_niter 60 --scph_nstr 50 >> out-${temperature}.dat& |" scph.job 
+
+        # Submit the calculation
+        sbatch -J scph-${temperature} scph.job
+        cd ..
+    end
+
+else if ("$mode" == "disp") then
+    echo "Enter temperatures (separated by space):"
+    set temps = ($<)
+
+    foreach temp ($temps)
+        echo "Processing temperature: $temp"
+
+        # Inside the folder
+        mkdir dispersion_${temp}
+        cd dispersion_${temp}
+        cp ../FORCE_CONSTANTS/FORCE_CONSTANTS_2ND_scph_${temp}.0 ./FORCE_CONSTANTS
+        cp ../../../../../files_VASP/BORN .
+        cp ../../../phonopy.yaml .
+        cp ../../../phonopy_disp.yaml .
+        cp ~/scripts/band-pdos_readfc.conf ./band-pdos.conf
+        phonopy -p -s band-pdos.conf
+        mv band_dos.pdf band_dos_${temp}.pdf
+
+        cd ..
+    end
+endif
+
+endif

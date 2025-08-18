@@ -1,0 +1,30 @@
+#!/bin/bash
+#SBATCH -N 2
+#SBATCH --account=nip00063
+#SBATCH --tasks-per-node=32
+#SBATCH --cpus-per-task=3
+#SBATCH -p standard96
+#SBATCH -t 12:00:00
+
+module load impi/2021.7.1
+module load vasp/6.4.1
+
+export PATH="~/miniconda3/bin/conda:$PATH"
+source /home/nipj5103/miniconda3/etc/profile.d/conda.sh
+conda activate hiphive
+
+# Define the cutoffs as a variable
+cut_1="MAX"
+cut_2="-9"
+cut_3="-7"
+cut_4="-4"
+cut_5="-4"
+
+file="out_${cut_1}_${cut_2}_${cut_3}_${cut_4}_${cut_5}.dat"
+
+echo "Job started at : "`date` >> $file
+
+python hiPhive_wrapper_NML.py -m post -n 10 -c $cut_1 $cut_2 $cut_3 $cut_4 $cut_5 -f rfe -t 0.8  >> $file
+
+echo "Job ended at : "`date` >> $file
+

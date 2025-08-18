@@ -625,7 +625,7 @@ def main():
 			#Obtain Force constants (fcs) using fcp
 			print("Building FCS",)
 			fcs_scph = fcp_scph.get_force_constants(sc)
-			
+		else:
 			#Print ShengBTE files
 			print("Printing files")
 			fcs_scph.write_to_phonopy("FORCE_CONSTANTS_2ND_scph_{}".format(T), format="text")

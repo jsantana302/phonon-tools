@@ -1,0 +1,31 @@
+#!/bin/bash
+#SBATCH --partition=standard96s
+#SBATCH --nodes=3
+#SBATCH --ntasks-per-node=48
+#SBATCH --cpus-per-task=2
+#SBATCH --time=24:00:00
+
+export PREFERRED_SOFTWARE_STACK=nhr-lmod
+source /sw/etc/profile/profile.sh
+module load cp2k/2024.1
+
+ulimit -s unlimited
+export OMP_NUM_THREADS=1
+export SLURM_CPU_BIND=none
+
+# <-- set the MPOSCAR indices you want here:
+indices=(32 33 34 35 30 31 32 33 34)
+
+for i in "${indices[@]}"; do
+    idx=$(printf "%03d" "$i")             # zero-pad to 3 digits
+    inp="M-${idx}.inp"
+    if [[ ! -f $inp ]]; then
+        echo ">> $inp not found, skipping"
+        continue
+    fi
+    echo "=== Running $inp ==="
+    srun cp2k.psmp -i "$inp" -o "${inp%.inp}.out"
+done
+
+find . -type f -name "*RESTART.kp.bak*" -delete
+

@@ -1,5 +1,4 @@
 #!/user/j.santanaandreo/u12658/miniconda3/envs/aim2dat/bin/python
-
 import os
 from aim2dat.io.phonopy import read_band_structure
 from aim2dat.plots.band_structure_dos import BandStructurePlot
@@ -80,8 +79,10 @@ bands_plot.import_band_structure(data_label="test_band_structure", **band_struct
 bands_plot.y_range = [-1.0, 10.0]
 
 # Generate the plot with the folder name as title
-plot = bands_plot.plot("test_band_structure", plot_title=f"{current_folder_name}")
+plot = bands_plot.plot("test_band_structure")
+#plot = bands_plot.plot("test_band_structure", plot_title=f"{current_folder_name}")
+
 
 # Save the plot with the folder name in the PDF filename
-pdf_filename = f"phonons_{current_folder_name}.pdf"
+pdf_filename = f"ph_{current_folder_name}.pdf"
 plot.savefig(pdf_filename)

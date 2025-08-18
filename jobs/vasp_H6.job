@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH -N 48
+#SBATCH --tasks-per-node 48	
+#SBATCH -p standard96
+#SBATCH -t 12:00:00	
+
+module load impi/2021.7.1
+module load vasp/6.4.1
+
+
+echo "Job started at : "`date` >> out.dat
+mpirun vasp_std >> out.dat
+echo "Job ended at : "`date` >> out.dat

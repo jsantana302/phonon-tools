@@ -1,0 +1,26 @@
+#!/bin/tcsh
+
+conda activate ~/miniconda3/envs/phonopyenv/
+
+if ( ! -e "band-pdos.conf" ) then
+   ln -sf ~/VASP/scripts/band-pdos.conf .
+   echo "band-pdos doesn't exists, template copied"
+endif
+
+echo "How many directories?"
+set num = $<
+
+## Set the variable for the command
+set cmd = "phonopy -f"
+## Append the folder names to the end of the command
+foreach i ( `seq 1 $num` )
+   set cmd = "$cmd $i/vasprun.xml"
+   echo "$cmd"
+   end
+echo "$cmd"
+sleep 5
+
+phonopy -p -s band-pdos.conf
+
+phonopy -t -p -s band-pdos.conf
+

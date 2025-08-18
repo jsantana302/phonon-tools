@@ -1,56 +1,7 @@
 #!/user/j.santanaandreo/u12658/miniconda3/envs/aim2dat/bin/python
-"""
-Tools for QHA/phonons workflow orchestration.
-
-This script bundles several convenience utilities for preparing,
-running, and post-processing structure-based calculations used in
-quasi-harmonic approximation (QHA) and phonon workflows. It is
-designed around CP2K + Phonopy runs and simple folder conventions,
-and assumes access to a handful of helper scripts:
-
-- ``~/scripts/cell_script.bash`` for per-folder cell setup
-- ``~/scripts/nodes_and_send.sh`` for job submission
-- ``~/scripts/pcp2k.py`` for phonon pre/post steps
-- ``~/scripts/plot_phonons_simple_dos.py`` for plotting
-- ``~/scripts/plot_helmholtz.py`` and
-  ``~/scripts/plot_thermal_prop.py`` for QHA plots
-
-Main modes (via ``-m/--mode``):
-
-- ``qha_pre``: prepare folders per target volume from ``*.xyz``
-- ``create_ev``: parse CP2K outputs into ``e-v.dat`` and CSV
-- ``pore_calc``: run simple pore metrics via ``network``
-- ``apply_strain``: generate compressed/expanded ``*.xyz`` series
-- ``phonopy_pre``: set up phonon subfolders and launch pre-step
-- ``phonopy_post``: run phonon post-step and quick plots
-- ``qha_post``: gather thermal properties and run phonopy-qha
-- ``submit_phonopy``: submit all ``ph_*`` jobs
-- ``submit_geo``: submit all geometry optimization jobs
-
-The script prints progress to stdout and aims to be idempotent where
-possible (e.g., skips when expected outputs already exist).
-
-Examples
---------
-Prepare per-volume folders and submit geometry optimizations:
-
->>> # In a directory with comp_*.xyz / exp_*.xyz + CP2K input
->>> # 1) prepare
->>> python this_script.py -m qha_pre
->>> # 2) submit geometry jobs
->>> python this_script.py -m submit_geo
-
-Create ``e-v.dat`` and run QHA aggregation to 1000 K:
-
->>> python this_script.py -m qha_post --temp 1000
-
-Notes
------
-- Requires CP2K, Phonopy, aim2dat, and the external helper scripts.
-- Directory enumeration relies on ``phonon_tools.get_directory_list``.
-"""
 import os
 import shutil
+import subprocess
 import argparse
 import csv
 import glob
@@ -58,6 +9,7 @@ import sys
 import numpy as np
 from aim2dat.strct import Structure, StructureCollection
 from aim2dat.strct.strct_manipulation import scale_unit_cell
+from pcp2k import pre_mode as pcp2k_pre
 from phonon_tools import (
     get_directory_list,
     read_lattice_from_xyz,
@@ -74,7 +26,6 @@ print("Script started...", flush=True)
 
 
 def calculate_volume(lattice):
-    
     """Calculates the volume of a lattice from its vectors."""
     lattice = np.array(lattice) if isinstance(lattice, list) else lattice
     matrix = lattice.reshape(3, 3)
@@ -83,9 +34,7 @@ def calculate_volume(lattice):
 
 
 def apply_strain(volume_increment, num_volumes):
-    """
-    Make isotropically scaled structures around the initial volume.
-    """        
+        
     # Get the input structure file
     xyz_files = [f for f in os.listdir('.') if f.endswith('.xyz')]
     if not xyz_files:
@@ -240,9 +189,6 @@ def submit_geo():
         run_cmd(f"cd {directory} && sbatch {os.path.basename(job_script_path)}")
 
 def create_ev():
-    """
-    Parse CP2K outputs and generate ``e-v.dat`` and a CSV index.
-    """
     e_v_dat = "e-v.dat"
     e_v_csv = "e-v-full.csv"
     dirs = get_directory_list()
@@ -280,9 +226,7 @@ def create_ev():
 
 
 def phonopy_pre(tolerance, cell_tipe, supercell_size):
-    """
-    Set up phonon subfolders and launch pre-processing.
-    """
+
     print("Starting phonopy pre-processing...")
     main_directories = get_directory_list()
     if not main_directories:

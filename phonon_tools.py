@@ -128,6 +128,140 @@ def get_default_name():
             return file.rsplit('.inp', 1)[0]
     return 'MOF-5'  # Default to 'MOF-5' if no suitable .inp file is found
 
+
+def create_array_job(total=19, parallel=5, outfile="cp2k_array.job"):
+    if total < 0 or parallel < 1:
+        raise ValueError("total must be >= 0 and parallel must be >= 1")
+
+    tmpl = (
+        "#!/bin/bash\n"
+        "#SBATCH --partition=standard96s\n"
+        "#SBATCH --time=12:00:00\n"
+        "#SBATCH --nodes=3\n"
+        "#SBATCH --ntasks-per-node=48\n"
+        "#SBATCH --cpus-per-task=2\n"
+        "#SBATCH --array=0-{total}%{parallel}\n"
+        "#SBATCH --requeue\n\n"
+        "export PREFERRED_SOFTWARE_STACK=nhr-lmod\n"
+        "source /sw/etc/profile/profile.sh\n"
+        "module load cp2k/2024.1\n\n"
+        "ulimit -s unlimited\n"
+        "export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK\n"
+        "export SLURM_CPU_BIND=none\n\n"
+        'i=$(printf "%02d" "$SLURM_ARRAY_TASK_ID")\n'
+        'cd "$i" || exit 1\n'
+        'inp=$(ls *.inp | head -n1)\n'
+        'srun cp2k.psmp -i "$inp" > "${{inp%.inp}}.out"\n'
+    )
+    with open(outfile, "w") as f:
+        f.write(tmpl.format(total=total, parallel=parallel))
+    print(f"Wrote {outfile} for 0-{total}%{parallel}")
+
+def create_band_pdos_conf(outfile="band-pdos.conf",
+                          dim=(1, 1, 1),
+                          primitive_axis="AUTO",
+                          band=None,
+                          band_labels=None,
+                          mesh=(3, 3, 3),
+                          gamma_center=True,
+                          pdos="AUTO",
+                          band_points=51,
+                          fc_symmetry=True):
+    """Create a Phonopy band-pdos.conf file.
+
+    Parameters
+    ----------
+    outfile : str
+        Name of the configuration file to write.
+    dim : tuple of int
+        Supercell dimension used for force constants.
+    primitive_axis : str
+        Primitive axis setting (default: 'AUTO').
+    band : list of list of float
+        High-symmetry path in reciprocal space. Each element is a
+        list [kx, ky, kz]. If None, a default MOF-5 path is written.
+    band_labels : list of str
+        Labels for the band path points. If None, defaults to
+        ["$\\Gamma$", "X", "W", "K", "$\\Gamma$", "L", "U"].
+    mesh : tuple of int
+        Mesh grid dimensions.
+    gamma_center : bool
+        Whether to gamma-center the mesh.
+    pdos : str
+        PDOS setting (e.g. 'AUTO').
+    band_points : int
+        Number of points along each band segment.
+    fc_symmetry : bool
+        Whether to symmetrize force constants.
+
+    Returns
+    -------
+    None
+        Writes the configuration file to `outfile`.
+    """
+    if band is None:
+        band = [
+            [0.0, 0.0, 0.0],
+            [0.5, 0.0, 0.5],
+            [0.5, 0.25, 0.75],
+            [0.375, 0.375, 0.75],
+            [0.0, 0.0, 0.0],
+            [0.5, 0.5, 0.5],
+            [0.625, 0.25, 0.625],
+        ]
+    if band_labels is None:
+        band_labels = ["$\\Gamma$", "X", "W", "K", "$\\Gamma$", "L", "U"]
+
+    with open(outfile, "w") as f:
+        f.write(f"DIM = {dim[0]} {dim[1]} {dim[2]}\n")
+        f.write(f"PRIMITIVE_AXIS = {primitive_axis}\n")
+        f.write("BAND = " + "  ".join(
+            [f"{x:g} {y:g} {z:g}" for x, y, z in band]) + "\n")
+        f.write("BAND_LABELS= " + " ".join(band_labels) + "\n")
+        f.write(f"MESH = {mesh[0]} {mesh[1]} {mesh[2]}\n")
+        f.write(f"GAMMA_CENTER = {'.TRUE.' if gamma_center else '.FALSE.'}\n")
+        f.write(f"PDOS = {pdos}\n")
+        f.write(f"BAND_POINTS={band_points}\n")
+        f.write(f"FC_SYMMETRY = {'.TRUE.' if fc_symmetry else '.FALSE.'}\n")
+
+def detect_input_file(user_input: str | None = None) -> str:
+    """Detect the CP2K input file to use.
+
+    Parameters
+    ----------
+    user_input : str or None
+        File provided by the user. If None, attempt auto-detection.
+
+    Returns
+    -------
+    str
+        Path to the detected input file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If no input file can be detected automatically.
+    """
+    if user_input:
+        return user_input
+
+    if os.path.exists("Punitcell.inp"):
+        print("Auto-detected input file: Punitcell.inp")
+        return "Punitcell.inp"
+    elif os.path.exists("Bunitcell.inp"):
+        print("Auto-detected input file: Bunitcell.inp")
+        return "Bunitcell.inp"
+
+    inp_files = [f for f in os.listdir(".") if f.endswith(".inp")]
+    if len(inp_files) == 1:
+        print(f"Auto-detected input file: {inp_files[0]}")
+        return inp_files[0]
+
+    raise FileNotFoundError(
+        "No input file specified and unable to auto-detect. "
+        "Please use -i/--input_file."
+    )
+
 #notebook
 
 

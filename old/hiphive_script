@@ -1,0 +1,136 @@
+#!/bin/tcsh
+
+# Define the FILES_VASP_DIR variable
+set FILES_VASP_DIR = "/home/nipj5103/files_VASP/MOF-5"
+
+# Activate the conda environment that contains phonopy
+echo "pre/pre2, post/post2, jobs/jobs_simple, h_jobs?"
+set mode = $<
+
+conda activate ~/miniconda3/envs/hiphive
+
+if ($mode == "pre") then
+   conda activate ~/miniconda3/envs/phonopyenv
+
+   cp ../CONTCAR ./POSCAR
+   phonopy --symmetry --tolerance 0.001
+   echo "prim or conv?"
+   set cell = $<
+   if ($cell == "prim") then
+      cp PPOSCAR POSCAR
+   else if ($cell == "conv") then
+      cp BPOSCAR POSCAR
+   else
+      echo "I don't understand"
+      exit
+   endif
+
+   echo "supercell size"
+   set s1 = $<:q
+   set s2 = $<:q
+   set s3 = $<:q
+
+   phonopy -d --dim="$s1 $s2 $s3"
+   # Copy the hiPhive wrapper Python script
+   rm POSCAR-*
+   cp ~/scripts/hiPhive_wrapper_IMAG_restart.py ./hiPhive_wrapper.py
+
+   mkdir INFILES
+   cd INFILES
+   # Copy necessary files for hiphive calculations
+   cp $FILES_VASP_DIR/KPOINTS_SC ./KPOINTS
+   cp $FILES_VASP_DIR/INCAR_SC ./INCAR
+   cp $FILES_VASP_DIR/vasp.job .
+   cp $FILES_VASP_DIR/POTCAR .
+
+   # Create INCAR1, 2, 3 files from INCAR
+   ~/scripts/crear_incar123 INCAR
+
+else if ($mode == "pre2") then
+
+   echo "mc or ...?"
+   set r = $<
+   echo "number of structures?"
+   set n = $<
+   echo "amplitude?"
+   set a = $<
+   python ~/scripts/hiPhive_wrapper_NML.py -m pre -r $r -n $n -a $a >> out_pre.dat &
+
+else if ($mode == "post") then
+
+   echo "number of structures?"
+   set n = $<
+   echo "cutoffs?"
+   set c1 = $<
+   set c2 = $<
+   set c3 = $<
+   set c4 = $<
+   set c5 = $<
+
+   echo "rfe or least-squares?"
+   set f = $<
+   echo "data distribution? (0.0 - 1.0)"
+   set t = $<
+   python ~/scripts/hiPhive_wrapper_NML.py -m post -n $n -c $c1 $c2 $c3 $c4 $c5 -f $f -t $t >> out_${c1}_${c2}_${c3}_${c4}_${c5}.dat &
+
+else if ($mode == "post2") then
+
+   conda activate ~/miniconda3/envs/phonopyenv
+
+   cp ../SPOSCAR .
+   cp ../POSCAR .
+   cp $FILES_VASP_DIR/band-pdos_readfc.conf .
+
+#[ ! -f ./band-pdos_readfc.conf ] && cp ~/scripts/band-pdos_readfc.conf .
+
+   cp FORCE_CONSTANTS_2ND FORCE_CONSTANTS
+   phonopy -p -s band-pdos_readfc.conf
+
+else if ($mode == "jobs") then
+   cd CALC
+   echo "step 1, 2 or 3?"
+   set step = $<
+   echo "How many job folders are there?"
+   set numFolders = $<
+
+   foreach i (`seq -f "%02g" 1 $numFolders`)
+     cd job-$i
+     rm INCAR
+     cp ../../INFILES/INCAR.$step .
+     cp INCAR.$step INCAR
+     sbatch vasp.job
+     cd ..
+   end
+
+else if ($mode == "jobs_simple") then
+   cd CALC
+   echo "step 1, 2 or 3?"
+   set step = $<
+   foreach dir ( job-08  job-09  job-10  )
+      cd $dir
+      rm INCAR
+      ln -sf ../../INFILES/INCAR.$step .
+      mv INCAR.$step INCAR
+      sbatch vasp.job
+      cd ..
+   end
+
+else if ($mode == "h_jobs") then
+   # Prompt for the compound name
+   echo "Enter the compound name:"
+   set compound = $<
+
+   cp -r ~/scripts/hiphive_jobs/* .
+
+   # Iterate through each hiphive job file and execute the command
+   foreach job (hiphive*.job)
+      # Extract the number from the job file name
+      set job_number = `echo $job | sed 's/[^0-9]//g'`
+      echo "Executing job $job for compound $compound"
+      sbatch -J "${compound}_hiph_cut${job_number}.job" $job
+   end
+
+else
+   echo "I don't understand"
+endif
+

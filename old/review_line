@@ -1,0 +1,4 @@
+#!/bin/bash
+
+
+for dir in */ ; do    echo "Entering directory $dir";    cd "$dir";    tail -n 5 out.dat;    cat slurm*;    cd .. ; done

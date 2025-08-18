@@ -1,0 +1,33 @@
+#!/bin/tcsh
+
+if ( "$1" == "" ) then
+   echo "Hay que indicar un INCAR modelo"
+   exit
+endif
+
+if ( ! -e $1 ) then
+   echo "File $1 not found"
+   exit
+endif
+
+grep -v ADDGRID $1 | grep -v NELM | grep -v LWAVE | grep -v LCHARG | grep -v LREAL | grep -v NSW | grep -v ISIF | grep -v EDIFF  > INCAR.1  #editamos el INCAR
+echo "" >> INCAR.1
+#parámetros comunes
+echo "LWAVE = T" >> INCAR.1
+echo "LCHARG = T" >> INCAR.1
+echo "NSW = 0" >> INCAR.1
+echo "" >> INCAR.1
+
+cp INCAR.1 INCAR.2
+#parámetros INCAR.1
+echo "LREAL = T" >> INCAR.1
+echo "EDIFF = 1E-5" >> INCAR.1
+
+#INCAR.2
+echo "LREAL = F" >> INCAR.2
+cp INCAR.2 INCAR.3
+echo "EDIFF = 1E-8" >> INCAR.2
+
+#INCAR.3
+echo "EDIFF = 1E-10" >> INCAR.3
+echo "ADDGRID = T" >> INCAR.3

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+# Ask for the initial ENCUT value
+echo -n "Enter the initial ENCUT value: "
+read initial_encut
+
+# Loop to create subdirectories and copy files
+for i in {0..7}; do
+    # Calculate ENCUT for current iteration
+    current_encut=$((initial_encut + i * 300))
+
+    # Create subdirectory
+    dir_name=ENCUT_conv/ENCUT_$current_encut
+    mkdir -p "$dir_name"
+    cd "$dir_name"
+    # Copy files from ../../../files_VASP
+    cp ../../../files_VASP/INCAR_OPT ./INCAR
+    cp ../../../files_VASP/KPOINTS_OPT ./KPOINTS
+    cp ../../../files_VASP/POSCAR .
+    cp ../../../files_VASP/POTCAR .
+    cp ../../../files_VASP/vasp_opt.job ./vasp.job
+    sbatch vasp.job
+    # Update ENCUT value in INCAR
+    if grep -q "^ENCUT =" "INCAR"; then
+        # ENCUT line exists, replace it
+        sed -i "s/^ENCUT =.*/ENCUT =$current_encut/" "INCAR"
+    else
+        # ENCUT line does not exist, add it
+        echo "ENCUT =$current_encut" >> "INCAR"
+    fi
+    cd ../..
+done
+
+echo "Setup completed."
+

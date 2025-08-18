@@ -1,0 +1,31 @@
+#!/bin/bash
+
+#SBATCH --partition=standard96s
+#SBATCH --nodes=6
+#SBATCH --ntasks-per-node=96
+#SBATCH --cpus-per-task=1
+#SBATCH --time=12:00:00
+
+export PREFERRED_SOFTWARE_STACK=nhr-lmod
+source /sw/etc/profile/profile.sh
+
+module load cp2k/2024.1
+
+ulimit -s unlimited
+
+export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK}
+export SLURM_CPU_BIND=none
+
+# Find the .inp file in the current directory
+inp_file=$(ls *.inp | head -n 1)
+
+if [[ -z "$inp_file" ]]; then
+  echo "Error: No .inp file found in the current directory."
+  exit 1
+fi
+
+srun cp2k.psmp -i "$inp_file" > "${inp_file%.inp}.out"
+
+# Remove all files named *RESTART.kp
+find . -type f -name "*bak*" -exec rm -f {} +
+

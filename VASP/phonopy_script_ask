@@ -1,0 +1,86 @@
+#!/bin/tcsh
+
+# Activate the conda environment
+conda activate ~/miniconda3/envs/phonopyenv
+
+# Ask for user input to determine if it's pre or post processing
+echo "pre or post?"
+set phonopy = $<
+
+echo "compound?"
+set comp = $<
+
+# Perform operations for pre processing
+if ($phonopy == "pre") then
+   cp ../CONTCAR ./POSCAR
+   phonopy --symmetry --tolerance 0.1
+   echo "prim or conv?"
+   set cell = $<
+
+   if ($cell == "prim") then
+      cp PPOSCAR POSCAR
+   else if ($cell == "conv") then
+      cp BPOSCAR POSCAR
+   else
+      echo "I don't understand"
+      exit
+   endif
+   
+   echo "supercell size"
+   set s1 = $<:q
+   set s2 = $<:q
+   set s3 = $<:q
+
+   phonopy -d --dim="$s1 $s2 $s3"
+   
+   # Count POSCAR files and create a directory for each one
+   set nPoscar = `ls POSCAR-* | wc -l`
+   mkdir 0
+   echo 0
+   cp SPOSCAR 0/POSCAR
+
+   # Move POSCAR files to respective directories
+   foreach i ( `seq 1 $nPoscar` )
+      mkdir $i
+      echo $i
+      if ($i < 10) then
+         set prefix="00"
+      else if ($i < 100) then
+         set prefix="0"
+      else
+         set prefix=""
+      endif
+      mv "POSCAR-$prefix$i" "$i/POSCAR"
+   end  
+
+   # Create symbolic links in each directory and submit jobs
+   foreach dir ( `seq 0 $nPoscar` )
+      cd $dir
+      cp ../../../files_VASP/KPOINTS_SC ./KPOINTS 
+      cp ../../../files_VASP/INCAR_SC ./INCAR    
+      cp ../../../files_VASP/vasp.job .
+      cp ../../../files_VASP/POTCAR .
+      cp ../../../files_VASP/BORN .
+      cd ..
+   end
+
+# Perform operations for post processing
+else if ($phonopy == "post") then
+   
+   echo "How many directories?"
+   set num = $<
+   
+   ## Set the variable for the command
+   set cmd = "phonopy -f"
+   ## Append the folder names to the end of the command
+   foreach i ( `seq 1 $num` )
+      set cmd = "$cmd $i/vasprun.xml"
+      end
+   echo "$cmd"
+   $cmd
+   cp ../../../files_VASP/BORN .
+   phonopy -p -s ../../../files_VASP/band-pdos.conf 
+   phonopy -t -s ../../../files_VASP/band-pdos.conf
+else
+   echo "I don't understand"
+endif

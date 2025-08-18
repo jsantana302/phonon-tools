@@ -1,0 +1,20 @@
+#!/bin/tcsh
+
+echo "step 1, 2 or 3?"
+set step = $<
+
+echo "How many job folders are there?"
+set numFolders = $<
+
+#Loop from job-01 to job-n 
+foreach i (`seq -f "%02g" 2 $numFolders`)
+  cd job-$i
+  rm INCAR
+  ln -sf ../../INFILES/INCAR.$step .
+  mv INCAR.$step INCAR
+  sbatch vasp.job
+  cd ..
+end
+
+
+

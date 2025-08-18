@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+
+import os
+import subprocess
+
+# Function to run shell commands
+def run_command(command):
+    result = subprocess.run(command, shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"Error executing command: {command}\n{result.stderr}")
+    return result.stdout
+
+# Activate the conda environment
+run_command("conda activate ~/miniconda3/envs/phonopyenv")
+
+# Define variables
+phonopy = "qha"  # pre, post, thermal, or qha
+comp = "MOF-5"  # Replace with the actual compound name
+
+# Additional variables for pre-processing
+cell = "prim"  # prim or conv
+s1, s2, s3 = "1", "1", "1"  # Replace with actual supercell sizes
+
+# Number of directories for post-processing
+num = 19  # Replace with the actual number of directories
+
+# Number of thermal properties files for QHA
+thermal_files_count = 9
+temp = 980
+pressure = 0
+
+# Define FILES_VASP_DIR
+FILES_VASP_DIR = "/home/nipj5103/files_VASP/MOF-5"
+
+# Perform operations for pre-processing
+if phonopy == "pre":
+    run_command("cp ../CONTCAR ./POSCAR")
+    run_command("phonopy --symmetry --tolerance 0.001")
+
+    if cell == "prim":
+        run_command("cp PPOSCAR POSCAR")
+    elif cell == "conv":
+        run_command("cp BPOSCAR POSCAR")
+    else:
+        print("I don't understand")
+        exit()
+
+    run_command(f"phonopy -d --dim={s1} {s2} {s3}")
+
+    nPoscar = int(run_command("ls POSCAR-* | wc -l"))
+    os.mkdir("0")
+    print(0)
+    run_command("cp SPOSCAR 0/POSCAR")
+
+    for i in range(1, nPoscar + 1):
+        os.mkdir(str(i))
+        print(i)
+        prefix = "00" if i < 10 else "0" if i < 100 else ""
+        run_command(f"mv POSCAR-{prefix}{i} {i}/POSCAR")
+
+    for dir in range(0, nPoscar + 1):
+        os.chdir(str(dir))
+        run_command(f"cp {FILES_VASP_DIR}/KPOINTS_SC ./KPOINTS")
+        run_command(f"cp {FILES_VASP_DIR}/INCAR_SC ./INCAR")
+        run_command(f"cp {FILES_VASP_DIR}/vasp.job .")
+        run_command(f"cp {FILES_VASP_DIR}/POTCAR .")
+        run_command(f"cp {FILES_VASP_DIR}/BORN .")
+        os.chdir("..")
+
+# Perform operations for post-processing
+elif phonopy == "post":
+    cmd = "phonopy -f " + " ".join([f"{i}/vasprun.xml" for i in range(1, num + 1)])
+    print(cmd)
+    run_command(cmd)
+    run_command(f"cp {FILES_VASP_DIR}/BORN .")
+    run_command(f"phonopy -p -s {FILES_VASP_DIR}/band-pdos.conf")
+    run_command(f"phonopy -t -s {FILES_VASP_DIR}/band-pdos.conf")
+
+# Perform operations for thermal properties
+elif phonopy == "thermal":
+    run_command(f"phonopy -t -p {FILES_VASP_DIR}/band-pdos.conf")
+
+# Perform operations for QHA
+elif phonopy == "qha":
+    cmd = f"phonopy-qha -p -s --tmax={temp} --pressure={pressure} e-v.dat " + \
+          " ".join([f"thermal_properties-{i:03d}.yaml" for i in range(1, thermal_files_count + 1)])
+    print(cmd)
+    run_command(cmd)
+
+else:
+    print("I don't understand")
+

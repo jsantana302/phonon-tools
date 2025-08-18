@@ -1,0 +1,32 @@
+#!/bin/bash
+#SBATCH --partition=standard96s
+#SBATCH --nodes=8
+#SBATCH --ntasks-per-node=96
+#SBATCH --cpus-per-task=1
+#SBATCH --time=12:00:00
+
+export PREFERRED_SOFTWARE_STACK=nhr-lmod
+source /sw/etc/profile/profile.sh
+
+module load cp2k/2024.1
+
+ulimit -s unlimited
+export OMP_NUM_THREADS=1
+export SLURM_CPU_BIND=none
+
+# Array of folder names
+indices="exp_4 exp_5"
+
+# Loop over each folder to execute CP2K within it
+for idx in $indices ; do
+    if [ -d "$idx" ]; then
+        cd $idx
+        inp_file=$(ls *.inp | head -n 1)
+        srun cp2k.psmp -i "$inp_file" > "${inp_file%.inp}.out"
+        cd ..
+    fi
+done
+
+# Clean up any backup files ending with *RESTART.kp.bak
+find . -type f -name "*RESTART.kp.bak*" -exec rm -f {} +
+

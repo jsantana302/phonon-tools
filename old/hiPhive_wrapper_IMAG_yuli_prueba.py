@@ -602,15 +602,32 @@ def main():
 		print("Building Initial FCS")
 		fcs = fcp.get_force_constants(sc)
 		calc = ForceConstantCalculator(fcs)
-	
+		
+		# Function to extract temperature from the filename
+		def extract_temperature(filename):
+			match = re.search(r'T(\d+)', filename)
+			return int(match.group(1)) if match else None
+
 		# run scph
 		os.makedirs('scph_trajs/', exist_ok=True)
 		for i, T in enumerate(temp):
 			print("Temperature= ",T," K")
 			if i > 0:
-                        	parameters_start = parameters_traj[-1]
-			else:
-                        	parameters_start = None
+				parameters_start = parameters_traj[-1]
+			else: #i = 0. so its the first temperature of the list, check if there's any previous scph traj calculation 
+				parameters_start = None #in case there's no folder and no previous temp
+				# Check if the scph_trajs folder exists and read the highest temperature file
+				if os.path.isdir('scph_trajs'):
+					files = [f for f in os.listdir('scph_trajs') if re.match(r'scph_parameters_T\d+', f)]
+					if files:
+						temperatures = [extract_temperature(f) for f in files]
+						highest_temperature = max(temperatures)
+						parameters_filename = 'scph_trajs/scph_parameters_T{}.0.npy'.format(highest_temperature)
+						loaded_parameters = np.load(parameters_filename, allow_pickle=True)
+						parameters_start = loaded_parameters[-1]  # This ensures parameters_start is a one-dimensional array with 35 elements
+						fcp = ForceConstantPotential.read('Potential_T{}.0.fcp'.format(highest_temperature))
+						print("Using parameters an Potential from temperature:", highest_temperature, "K")
+						
 			parameters_traj = self_consistent_harmonic_model(sc, calc, cs2, T, alpha, n_iterations, n_structures,imag_freq_factor=2,parameters_start=parameters_start)
 			if rot_sumrule:
 				print("Enforcing rotational sumrules")
@@ -620,7 +637,9 @@ def main():
 			else:
 				fcp_scph = ForceConstantPotential(cs2, parameters_traj[-1])
 			fcp_scph.write('Potential_T{}.fcp'.format(T))
+			np.save('scph_trajs/scph_parameters_T{}.npy'.format(T), np.array(parameters_traj))
 			np.savetxt('scph_trajs/scph_parameters_T{}'.format(T), np.array(parameters_traj))
+
 			
 			#Obtain Force constants (fcs) using fcp
 			print("Building FCS",)

@@ -1,0 +1,8 @@
+#!/bin/tcsh
+
+POTENTIALS=/cm/shared/uniol/software/8.3/VASP/6.2.1-intel-2019b-Wannier90/potentials
+cd $POTENTIALS
+cd potpaw_PBE_54
+ls
+cat $POTENTIALS/potpaw_PBE_54/Na_sv/POTCAR>POTCAR
+cat $POTENTIALS/potpaw_PBE_54/Sb/POTCAR>>POTCAR

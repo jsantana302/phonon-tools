@@ -1,0 +1,192 @@
+#!/bin/tcsh
+conda activate ~/miniconda3/envs/phonopyenv
+echo "pre or post?"
+set phonopy = $<
+if ($phonopy == "pre") then
+
+   #Estamos en PHONONS 
+   cp ../CONTCAR ./POSCAR
+   phonopy --symmetry --tolerance 0.001
+   sleep 4 #para que le de tiempo a phonopy
+   
+   echo "prim or conv?"
+   set cell = $<
+   if ($cell == "prim") then
+      cp PPOSCAR POSCAR
+      rm BPOSCAR
+   else if ($cell == "conv") then
+      cp BPOSCAR POSCAR
+      rm PPOSCAR
+   else
+      echo "I don't understand"
+      exit
+   endif
+   
+   echo "supercell size"
+   set s1 = $<
+   set s2 = $<
+   set s3 = $<
+   phonopy -d --dim="${s1} ${s2} ${s3}"
+   
+   sleep 4
+   
+   # Get the number of POSCAR-XXX files and creates X folders for each one
+   set nPoscar = `ls POSCAR-* | wc -l`
+   mkdir 0
+   echo 0
+   mv SPOSCAR 0/POSCAR
+   foreach i ( `seq 1 $nPoscar` )
+      mkdir $i
+      echo $i
+      if ($i <10) then
+         mv POSCAR-00$i $i/POSCAR
+      else if ( $i >= 10 && $i < 100 ) then
+         mv POSCAR-0$i $i/POSCAR
+      else if ( $i >= 100 ) then
+         mv POSCAR-$i $i/POSCAR
+      endif
+   end  
+   
+   #KPOINTS
+   echo "Automatic mesh" > KPOINTS
+   echo "0" >> KPOINTS
+   echo "kpoints?"
+   set k1 = $<
+   set k2 = $<
+   set k3 = $<
+   
+   echo "Monkhorst Pack or Gamma Centered(->hexagonal)? M/G"
+   set kk = $<
+   
+   if ($kk == "M") then
+      echo "Monkhorst Pack" >> KPOINTS
+   else if ($kk == "G") then
+      echo "Gamma Centered" >> KPOINTS
+   else 
+      echo "I don't understand"
+   endif
+   echo "${k1}  ${k2}  ${k3}" >> KPOINTS
+   echo "0. 0. 0." >> KPOINTS
+   
+   
+   #INCAR
+   echo "System name?"
+   set name = $<
+   
+   echo "#electronic optimization:" > INCAR.temp
+   echo "SYSTEM = ${name}" >> INCAR.temp
+   
+   
+   echo "INCAR default values? (y/n)"
+   set q2 = $<
+   
+   if ($q2 == "y") then
+      grep -v SYSTEM ../../INCAR | grep -v optimization >> INCAR.temp
+      mv INCAR.temp INCAR
+   else if ($q2 == "n") then
+      echo "which value would you like to change?"
+      set A1 = $<
+      echo "replace"
+      set A2 = $<
+      
+      grep -v $A1 ../../INCAR | grep -v SYSTEM | grep -v optimization >> INCAR.temp
+      echo "${A1} = ${A2}" >> INCAR.temp
+      
+      echo "any other?(y/n)"
+      set q3 = $<
+      if ($q3 == "n") then
+         mv INCAR.temp INCAR
+      else if ($q3 == "y") then
+         echo "which value would you like to change?"
+         set B1 = $<
+   	  echo "replace"
+         set B2 = $<
+   	  grep -v $B1 INCAR.temp > INCAR.temp2
+         echo "${B1} = ${B2}" >> INCAR.temp2
+   	
+         echo "any other?(y/n)"
+         set q4 = $<
+         if ($q4 == "n") then
+   		mv INCAR.temp2 INCAR
+   		rm INCAR.temp
+         else if ($q4 == "y") then
+   	     echo "which value would you like to change?"
+            set C1 = $<
+   	     echo "replace"
+            set C2 = $<
+   	     grep -v $C1 INCAR.temp2 > INCAR.temp3
+            echo "${C1} = ${C2}" >> INCAR.temp3
+   		 mv INCAR.temp3 INCAR
+   		 rm INCAR.temp INCAR.temp2
+   	  else
+   	     echo "I don't understand"
+   	     endif	 
+      else 
+         echo "I don't understand"
+         endif
+   else
+      echo "I don't understand"
+      endif
+   endif
+   
+   #vasp.job
+   echo "vasp.job default values? (y/n)"
+   set q2 = $<
+   
+   if ($q2 == "y") then
+      cp ../../1/vasp.job .
+   else if ($q2 == "n") then
+     echo "number of nodes?"
+     set V1 = $<
+     echo "which queue? (carl.p/all_nodes.p)"
+     set V2 = $<
+	 echo "time? (1-00:00:00 format)"
+     set V3 = $<
+	 echo 
+	 echo '#!/bin/bash' > vasp.job
+     echo "#SBATCH --nodes=${V1}" >> vasp.job
+	 echo "#SBATCH --ntasks-per-node=24" >> vasp.job
+     echo "#SBATCH --cpus-per-task=1" >> vasp.job
+	 echo "#SBATCH --exclusive" >> vasp.job
+	 echo "#SBATCH -p ${V2}" >> vasp.job
+	 echo "#SBATCH --time=${V3}" >> vasp.job
+
+     grep -v node ~/VASP/vasp.job_base >> vasp.job
+   else
+      echo "I don't understand"
+   endif
+   
+   
+
+   foreach dir ( `seq 0 $nPoscar` )
+      cd $dir
+      ln -sf ../KPOINTS . 
+      ln -sf ../INCAR .
+      ln -sf ../../POTCAR .
+      ln -sf ../vasp.job .   
+      sbatch vasp.job
+      cd ..
+   end
+
+else if ($phonopy == "post") then
+   ln -s ~/VASP/scripts/band-pdos.conf .
+   
+   echo "How many directories?"
+   set num = $<
+   
+   ## Set the variable for the command
+   set cmd = "phonopy -f"
+   ## Append the folder names to the end of the command
+   foreach i ( `seq 1 $num` )
+      set cmd = "$cmd $i/vasprun.xml"
+      end
+   echo "$cmd"
+   $cmd
+   sleep 5
+   
+   phonopy -p -s band-pdos.conf
+   
+   phonopy -t -p -s band-pdos.conf
+else
+   echo "I don't understand"
+endif

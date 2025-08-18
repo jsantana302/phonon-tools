@@ -1,0 +1,22 @@
+
+
+#!/bin/bash
+
+file_patterns=("CHG*" "CONTCAR" "EIGENVAL" "OSZICAR" "CHGCAR" "DOSCAR" "IBZKPT" "vaspout.h5" "OUTCAR" "PCDAT" "vasprun.xml" "XDATCAR" "WAVECAR*" "REPORT")
+
+for pattern in "${file_patterns[@]}"; do
+  for file in $pattern; do
+    if [ -e "$file" ]; then
+      echo "Deleting $file"
+      rm "$file"
+    fi
+  done
+done
+
+# Remove slurm* files separately
+for slurmfile in slurm*; do
+  if [ -e "$slurmfile" ]; then
+      echo "Deleting $slurmfile"
+      rm "$slurmfile"
+  fi
+done

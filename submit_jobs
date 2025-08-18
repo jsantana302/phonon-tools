@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# Ask for the step number if needed
+read -p "Enter the step number: " step
+
+# Check step input
+if [ -z "$step" ]; then
+    echo "Step number not provided. Exiting."
+    exit 1
+fi
+
+# Ask for the mode to use
+read -p "Enter the mode (hiphive or phonopy): " mode
+
+# Check if mode input is correct
+if [[ "$mode" != "hiphive" && "$mode" != "phonopy" ]]; then
+    echo "Invalid mode entered: $mode. Exiting."
+    exit 1
+fi
+
+# Ask for the name of the compound
+read -p "Enter the name of the compound: " compound_name
+
+# Check if compound name is provided
+if [ -z "$compound_name" ]; then
+    echo "No compound name provided. Exiting."
+    exit 1
+fi
+
+# Ask for the number of jobs specific to the mode
+if [[ "$mode" == "hiphive" ]]; then
+    read -p "Enter the number of jobs to submit in hiphive mode: " num_jobs_hiphive
+else
+    read -p "Enter the number of jobs to submit in phonopy mode: " num_jobs
+fi
+
+if [[ "$mode" == "hiphive" && ! "$num_jobs_hiphive" =~ ^[0-9]+$ ]]; then
+    echo "Invalid number of jobs: $num_jobs_hiphive. Exiting."
+    exit 1
+elif [[ "$mode" == "phonopy" && ! "$num_jobs" =~ ^[0-9]+$ ]]; then
+    echo "Invalid number of jobs: $num_jobs. Exiting."
+    exit 1
+fi
+
+# Switch based on mode
+case $mode in
+    "hiphive")
+        # Navigate to the CALC directory
+        cd CALC || { echo "CALC directory not found. Exiting."; exit 1; }
+
+        # Loop through the jobs
+        for i in $(seq -f "%02g" 1 "$num_jobs_hiphive"); do
+            cd "job-$i" || continue
+
+            echo "This is job number $i"
+
+            # Copy and modify files
+            cp ../../INFILES/INCAR."$step" ./INCAR
+            cp ../../INFILES/KPOINTS .
+            cp ../../INFILES/vasp.job .
+            sbatch -J "${compound_name}_s${step}-$i" vasp.job
+
+            # Navigate back to the parent directory
+            cd ..
+        done
+        ;;
+    "phonopy")
+        read -p "Which modep (direct or steps): " modep
+
+        # Main job submission loop
+        for ((i=0; i<num_jobs; i++)); do
+            cd "$i" || continue
+
+            cp ../../../files_vasp/vasp.job .
+            cp ../../../files_vasp/INCAR .
+            echo "This is job number $i"
+            case $modep in
+                "direct")
+                    sbatch -J "${compound_name}$i" vasp.job
+                    ;;
+                "steps")
+                    ~/scripts/crear_incar123 INCAR
+                    cp INCAR."$step" INCAR
+                    sbatch -J "${compound_name}_s${step}-$i" vasp.job
+                    ;;
+                *)
+                    echo "Invalid choice: $modep. Skipping job $i."
+                    ;;
+            esac
+
+            cd ..
+        done
+        ;;
+esac
+

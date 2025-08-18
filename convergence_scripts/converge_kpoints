@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Ask for the initial k-point value (assuming it's cubic and starts the same for x, y, z)
+echo -n "Enter the initial k-point mesh value (e.g., 3 for a 3x3x3 mesh): "
+read initial_kpoints
+
+# Number of directories to create
+num_dirs=6
+
+# Base directory for the k-point convergence tests
+base_dir="KPOINTS_conv"
+mkdir -p "$base_dir"
+
+# Loop to create subdirectories, copy files, and modify KPOINTS
+for ((i = 0; i < num_dirs; i++)); do
+    # Calculate current k-point mesh
+    current_kpoints=$((initial_kpoints + i))
+    
+    # Create subdirectory
+    dir_name="$base_dir/KPOINTS_${current_kpoints}x${current_kpoints}x${current_kpoints}"
+    mkdir -p "$dir_name"
+    
+    # Copy VASP files from a source directory
+    cp ../files_VASP/INCAR_OPT "$dir_name/INCAR"
+    cp ../files_VASP/POSCAR "$dir_name/"
+    cp ../files_VASP/POTCAR "$dir_name/"
+    cp ../files_VASP/vasp_opt.job "$dir_name/vasp.job"
+    
+    # Create or modify the KPOINTS file
+    echo "Automatic mesh
+0
+M
+$current_kpoints $current_kpoints $current_kpoints
+0 0 0" > "$dir_name/KPOINTS"
+    cd "$dir_name"
+    sbatch "vasp.job"
+    cd ../../
+done
+
+echo "KPOINTS convergence setup completed."
+

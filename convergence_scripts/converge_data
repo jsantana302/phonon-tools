@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Initialize temporary and final output file names
+temp_output_file="energy_values_unsorted.txt"
+final_output_file="energy_values.txt"
+
+# Function to process ENCUT directories
+process_encut() {
+    encut_value=$(echo "$1" | grep -oP 'ENCUT_\K\d+')
+    free_energy=$(grep '1 F=' out.dat | tail -n 1 | awk '{print ($3<0?-1*$3:$3)}')
+    echo -e "$encut_value\t$free_energy"
+}
+
+# Function to process KPOINTS directories
+process_kpoints() {
+    kpoint_value=$(echo "$1" | grep -oP 'KPOINTS_\K\d+x\d+x\d+')
+    free_energy=$(grep '1 F=' out.dat | tail -n 1 | awk '{print ($3<0?-1*$3:$3)}')
+    echo -e "$kpoint_value\t$free_energy"
+}
+
+# Detect folder type (ENCUT or KPOINTS)
+folder_type=""
+if ls | grep -q 'ENCUT_'; then
+    folder_type="ENCUT"
+    echo -e "ENCUT\tFree_Energy" > "$temp_output_file"
+elif ls | grep -q 'KPOINTS_'; then
+    folder_type="KPOINTS"
+    echo -e "KPOINT\tFree_Energy" > "$temp_output_file"
+fi
+
+# Process directories based on detected folder type
+for dir in ${folder_type}_*/ ; do
+    if [ -d "$dir" ]; then
+        cd "$dir"
+        if [ "$folder_type" = "ENCUT" ]; then
+            process_encut "$dir" >> "../$temp_output_file"
+        elif [ "$folder_type" = "KPOINTS" ]; then
+            process_kpoints "$dir" >> "../$temp_output_file"
+        fi
+        cd ..
+    fi
+done
+
+# Sort the temporary file and save it to the final output file
+sort -n -k1,1 "$temp_output_file" > "$final_output_file"
+
+# Remove the temporary unsorted file
+rm "$temp_output_file"
+
+echo "Script completed. Sorted energy values are in $final_output_file."
+

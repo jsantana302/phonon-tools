@@ -1,0 +1,42 @@
+#!/bin/bash
+
+# Function to delete files
+delete_files () {
+    echo "Deleting files named $1..."
+    find . -type f -name "$1" -exec rm {} +
+}
+
+# Function to print file paths
+print_files () {
+    echo "Listing files named $1..."
+    find . -type f -name "$1"
+}
+
+# Main menu for user input
+echo "Choose an option for handling files named WAVECAR and CHGCAR:"
+echo "1. Delete files"
+echo "2. Print file paths"
+echo "3. Delete files and print paths"
+read -p "Enter option (1, 2, or 3): " option
+
+case $option in
+    1)
+        delete_files "WAVECAR"
+        delete_files "CHGCAR"
+        ;;
+    2)
+        print_files "WAVECAR"
+        print_files "CHGCAR"
+        ;;
+    3)
+        print_files "WAVECAR"
+        delete_files "WAVECAR"
+        print_files "CHGCAR"
+        delete_files "CHGCAR"
+        ;;
+    *)
+        echo "Invalid option. Exiting."
+        exit 1
+        ;;
+esac
+

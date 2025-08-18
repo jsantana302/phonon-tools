@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Ask for the step number
+read -p "Enter the step number: " step
+
+# Ask for the name of the compound
+read -p "Enter the name of the compound: " compound_name
+
+# Navigate to the CALC directory
+cd CALC || { echo "CALC directory not found. Exiting."; exit 1; }
+
+# Loop through the jobs
+for i in 03 04 05 06 08 09 10; do
+#for i in $(seq -f "%02g" 1 10); do
+    cd "job-$i" || continue
+    
+    echo ""
+    echo "This is job number $i"
+    
+    # Copy the INCAR file and modify it
+    cp ../../INFILES/INCAR."$step" ./INCAR
+    cp ../../INFILES/KPOINTS .
+    cp ../../INFILES/vasp.job .
+    # Submit the job with a custom name including the compound name, step, and job number
+    sbatch -J "${compound_name}_s${step}-$i" vasp.job
+
+    # Navigate back to the parent directory
+    cd ..
+done
+

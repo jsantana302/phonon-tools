@@ -1,0 +1,18 @@
+#!/bin/tcsh
+
+cd CALC
+foreach dir ( job-01 job-02 job-03 job-04 job-05 job-06 job-07 job-08  job-09  job-10  )
+   cd ../NEW_CALC
+   mkdir $dir
+   cd ../CALC
+   cd $dir
+   cp INCAR ../../NEW_CALC/$dir
+   cp POTCAR ../../NEW_CALC/$dir
+   cp POSCAR ../../NEW_CALC/$dir
+   cp KPOINTS ../../NEW_CALC/$dir
+   cp vasp.job ../../NEW_CALC/$dir
+   cp OUTCAR ../../NEW_CALC/$dir
+   cp slurm* ../../NEW_CALC/$dir
+   cp out.dat ../../NEW_CALC/$dir
+   cd ../../CALC
+end

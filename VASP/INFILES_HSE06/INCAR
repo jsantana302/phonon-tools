@@ -1,0 +1,32 @@
+#electronic optimization:    
+SYSTEM = Cs3Sb Optimization 
+PREC = Accurate
+EDIFF = 1E-9      #global break condition for the electronic SC-loop.
+ISMEAR = 0        #gaussian smearing
+SIGMA = 0.01      #smearing width
+NELMIN = 5        #min electronic SC steps
+NELM = 100        #max electronic SC steps
+LREAL = .FALSE.   #projection operators are evaluated in reciprocal (if TRUE:real) space.
+LWAVE = T   #wavefunctions are written 
+LCHARG = T  #CHGCAR and CHG are written.
+ISTART = 1        #read WAVECAR
+ICHARG = 1        #read CHGCAR
+ENCUT = 500
+#LEPSILON = T     #Born effective charges   
+
+#HSE06 functional:
+LHFCALC = T       #LHFCALC specifies whether a Hartree-Fock/DFT hybrid functional type calculation is performed.
+GGA = PE          #GGA(e.g. PBE) calculations with pseudo generated with conventional LDA reference configurations.
+HFSCREEN = 0.2    #HSE03 (HFSCREEN=0.3) or HSE06 (HFSCREEN=0.2) functionals
+ALGO = Damped     #It is recommended to select a "direct optimization" algorithm for HF/DFT hybrid functonal
+TIME = 0.4        #time step for ALGO = Damped
+LDIAG = F         #to conserve the initial orbital order (when orbitals are read from the WAVECAR file)
+#higher accuracy:
+LASPH = T         #include non-spherical contributions related to the gradient of the density in the PAW spheres.
+ADDGRID = T       #an additional support grid is used for the evaluation of the augmentation charges.
+
+#ionic relaxation:
+IBRION = 1        #algorithm
+NSW = 0          #max number of ionic steps
+ISIF = 3
+ISYM = 3 

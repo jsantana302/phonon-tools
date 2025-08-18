@@ -1,0 +1,21 @@
+#!/bin/tcsh
+
+conda activate ~/miniconda3/envs/phonopyenv/
+
+python hiPhive_wrapper_NML.py -m post -n 10 -c 6.5 2.2 4 -f rfe -t 0.8
+sleep 17
+cd DIR_cutoff_6.5000_4.4000_4.0000_n_10_rfe_tf_0.8
+cp ../../../PHONONS/phonopy_disp.yaml .
+cp ../../../PHONONS/phonopy.yaml .
+cp ../../../PHONONS/0/POSCAR .
+mv POSCAR SPOSCAR
+cp ../../../PHONONS/POSCAR .
+ln -sf ~/VASP/CsSb/band-pdos-hP.conf .
+cp FORCE_CONSTANTS_2ND FORCE_CONSTANTS
+
+
+
+phonopy -p -s band-pdos-hP.conf
+
+phonopy -t -p -s band-pdos-hP.conf
+

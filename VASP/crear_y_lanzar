@@ -1,0 +1,86 @@
+#!/bin/bash
+
+shopt -s expand_aliases
+source ~/etc/lusitania
+
+if [ -e Supercelda ] ; then
+   echo "La carpeta Supercelda ya existe - se para el proceso"
+   exit
+fi
+
+if [ ! -e OPT_CONV/1 ] ; then
+   echo "La carpeta OPT_CONV/1 no existe - se para el proceso"
+   exit
+fi
+
+if [ ! -e OPT_CONV/1/CONTCAR ] ; then
+   echo "No existe el fichero CONTCAR en OPT_CONV/1 - se para el proceso"
+   exit
+fi
+
+if [ -e hipHive ] ; then
+   echo "La carpeta hipHive ya existe - se para el proceso"
+   exit
+fi
+
+mkdir Supercelda
+cd Supercelda
+cp ../OPT_CONV/1/CONTCAR POSCAR
+. /u/local/hiPhive/venv/phonons/bin/activate
+phonopy --symmetry --tolerance=0.000001
+cp BPOSCAR POSCAR
+phonopy -d --dim="2 2 2"
+mv SPOSCAR POSCAR
+phonopy --symmetry --tolerance=0.000001
+mv POSCAR SPOSCAR
+
+/u/local/VASP/shared/bin/kpoints 2 2 2 > KPOINTS
+ln -s ../OPT_PRIM/POTCAR .
+
+grep -v ADDGRID ../OPT_PRIM/INCAR | grep -v ALGO | grep -v LREAL | grep -v NSW | grep -v ISIF | grep -v EDIFF > INCAR.1
+echo "ALGO = Normal" >> INCAR.1
+echo "LWAVE = T" >> INCAR.1
+echo "LCHARG = F" >> INCAR.1
+echo "NSW = 0" >> INCAR.1
+cp INCAR.1 INCAR.2
+echo "LREAL = A" >> INCAR.1
+echo "EDIFF = 1E-7" >> INCAR.1
+
+echo "ADDGRID = T" >> INCAR.2
+echo "LREAL = F" >> INCAR.2
+echo "EDIFF = 1E-10" >> INCAR.2
+cd ..
+
+mkdir hipHive
+cd hipHive
+ln -s ../Supercelda/SPOSCAR .
+ln -s ../Supercelda/PPOSCAR POSCAR
+mkdir INFILES
+cd INFILES
+ln -s ../../OPT_PRIM/POTCAR .
+/u/local/VASP/shared/bin/kpoints 2 2 2 > KPOINTS
+cp ../../Supercelda/INCAR.1 INCAR
+cp ../../Supercelda/INCAR.2 .
+cd ..
+
+module load QC/hipHive
+echo "Creando estructuras"
+hiPhive_wrapper_NML.py -m pre -r mc -n 24 -a 0.03 > out
+
+cd INFILES
+mv INCAR INCAR.1
+cd ..
+
+cd CALC
+for n in {1..24..1}
+do
+    d=$(echo $n | awk '{printf("job-%02d\n",$1)}')
+    cd $d
+    ln -sf ../../INFILES/KPOINTS .
+    ln -sf ../../INFILES/POTCAR .
+    rm INCAR
+    ln -sf ../../INFILES/INCAR.1 .
+    ln -sf ../../INFILES/INCAR.2 .
+    vasp -N $d
+    cd ..
+done

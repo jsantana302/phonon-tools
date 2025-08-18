@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Loop through the directories named 0 to 19
+for i in {00..19}; do
+  # Enter the directory
+  cd "$i"
+  # Execute the script ~/scripts/crear_incar123
+  #~/scripts/remove_all_except_IPPK
+  #~/scripts/crear_incar123 INCAR
+  # Move INCAR.1 to INCAR
+  #mv INCAR.1 INCAR
+  # Submit the calculation with sbatch
+  cp ../vasp.job .
+  sbatch vasp.job
+  # Exit the directory (go back up to the parent directory)
+  cd ..
+done
+

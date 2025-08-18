@@ -1,0 +1,32 @@
+#!/bin/bash
+#SBATCH -N 2
+#SBATCH --account=nic00084
+#SBATCH --tasks-per-node=32
+#SBATCH --cpus-per-task=3
+#SBATCH -p large96
+#SBATCH -t 12:00:00
+
+module load impi/2021.7.1
+module load vasp/6.4.1
+
+export SLURM_CPU_BIND=none
+
+# Set the number of OpenMP threads as given by the SLURM parameter "cpus-per-task"
+export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+
+# Adjust the maximum stack size of OpenMP threads
+export OMP_STACKSIZE=512m
+
+# Binding OpenMP threads
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
+
+# Binding MPI tasks
+export I_MPI_PIN=yes
+export I_MPI_PIN_DOMAIN=omp
+export I_MPI_PIN_CELL=core
+
+echo "Job started at : "`date` >> out.dat
+mpirun vasp_std >> out.dat
+echo "Job ended at : "`date` >> out.dat
+

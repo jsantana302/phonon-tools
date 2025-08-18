@@ -345,7 +345,7 @@ def main():
 			fcp = ForceConstantPotential.read("Potential.fcp")
 			# setup calculator
 			fc2 = fcp.get_force_constants(sc).get_fc_array(order=2, format='ase')
-			structures = generate_phonon_rattled_structures(sc, fc2, rat_n, temp, imag_freq_factor=2 )
+			structures = generate_phonon_rattled_structures(sc, fc2, rat_n, temp, imag_freq_factor=10 )
 	
 		#Write DIRS with infiles for VASP calculations
 		write_vasp_dirs(structures,infiles)				
@@ -605,13 +605,11 @@ def main():
 	
 		# run scph
 		os.makedirs('scph_trajs/', exist_ok=True)
-		for i, T in enumerate(temp):
+		for T in temp:
 			print("Temperature= ",T," K")
-			if i > 0:
-                        	parameters_start = parameters_traj[-1]
-			else:
-                        	parameters_start = None
-			parameters_traj = self_consistent_harmonic_model(sc, calc, cs2, T, alpha, n_iterations, n_structures,imag_freq_factor=2,parameters_start=parameters_start)
+		#	from hiphive.self_consistent_phonons import FreeEnergy
+		#	convergence =  FreeEnergy(T= T, free_energy_difference= 0.01)
+			parameters_traj = self_consistent_harmonic_model(sc, calc, cs2, T, alpha, n_iterations, n_structures)
 			if rot_sumrule:
 				print("Enforcing rotational sumrules")
 				from hiphive import enforce_rotational_sum_rules

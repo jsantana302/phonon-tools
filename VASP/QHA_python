@@ -1,0 +1,193 @@
+#!/usr/bin/env python3
+
+import os
+import shutil
+import subprocess
+import argparse
+
+# Hardcoded values
+SRC_DIR = "OPT_V0"
+DEST_BASE_DIR = "OPT_V"
+FILES_TO_COPY = ["INCAR", "CONTCAR", "POTCAR", "vasp.job", "KPOINTS"]
+NUM_FOLDERS = 4
+SCALING_INCREMENT = 0.002
+NUM_JOBS = 20
+PHONOPY_SCRIPT = "/home/nipj5103/scripts/phonopy_script.sh"
+FILES_VASP_DIR = "/home/nipj5103/files_VASP/MOF-5"
+E_V_DAT_FILENAME = "e-v.dat"
+
+def modify_poscar(src_file, dest_file, increment):
+    with open(src_file, 'r') as src, open(dest_file, 'w') as dest:
+        lines = src.readlines()
+        if len(lines) > 1:
+            lines[1] = str(float(lines[1].strip()) + increment) + '\n'
+        dest.writelines(lines)
+
+def modify_incar(src_file, dest_file):
+    with open(src_file, 'r') as src, open(dest_file, 'w') as dest:
+        for line in src:
+            if line.startswith('ISIF = 3'):
+                dest.write('ISIF = 2 #relaxation of the ion positions\n')
+            else:
+                dest.write(line)
+
+def create_ev():
+    directories = get_directory_list(include_opt_v0=True)
+    with open(E_V_DAT_FILENAME, 'w') as outfile:
+        outfile.write("#   cell volume   energy of cell other than phonon   directory name\n")
+        for dir in directories:
+            outcar_path = os.path.join(dir, 'OUTCAR')
+            if os.path.isfile(outcar_path):
+                with open(outcar_path, 'r') as f:
+                    lines = f.readlines()
+                    volume = None
+                    energy = None
+                    for line in lines:
+                        if "volume of cell" in line:
+                            volume = float(line.split()[-1])
+                        if "free  energy   TOTEN" in line:
+                            energy = float(line.split()[-2])
+                    if volume is not None and energy is not None:
+                        outfile.write(f"{volume}           {energy}           {dir}\n")
+                    else:
+                        print(f"Warning: Volume or energy not found in {outcar_path}")
+
+
+def get_directory_list(include_opt_v0=False):
+    directories = []
+    for i in range(NUM_FOLDERS, 0, -1):
+        directories.append(f"OPT_V-{i}")
+    if include_opt_v0:
+        directories.append("OPT_V0")
+    for i in range(1, NUM_FOLDERS + 1):
+        directories.append(f"OPT_V+{i}")
+    return directories
+
+def submit_jobs():
+    directories = get_directory_list()
+    for dir in directories:
+        if os.path.isdir(dir):
+            os.chdir(dir)
+            print(f" This is volume {dir}")
+            shutil.copy('../vasp.job', '.')
+            subprocess.run(['sbatch', '-J', dir, 'vasp.job'])
+            os.chdir('..')
+
+def check_jobs():
+    directories = get_directory_list()
+    for dir in directories:
+        if os.path.isdir(dir):
+            print(f" This is job number {dir}")
+            os.chdir(dir)
+            subprocess.run(['tail', 'OUTCAR'])
+            subprocess.run("tac OUTCAR | grep -m 1 'free energy' | tac",shell=True)
+            subprocess.run("tac OUTCAR | grep -m 1 'reached' | tac",shell=True)
+            latest = sorted([f for f in os.listdir() if f.startswith('slurm-')], reverse=True)[0]
+            with open(latest, 'r') as f:
+                print(f.read())
+            os.chdir('..')
+
+def run_phonopy():
+    directories = get_directory_list()
+    for dir in directories:
+        if os.path.isdir(dir):
+            print(f"\n This is volume {dir}\n")
+            os.chdir(dir)
+            os.makedirs('phonopy', exist_ok=True)
+            os.chdir('phonopy')
+            subprocess.run([PHONOPY_SCRIPT], check=True)
+            os.chdir('../..')
+
+def create_ev():
+    directories = get_directory_list(include_opt_v0=True)
+    with open(E_V_DAT_FILENAME, 'w') as outfile:
+        outfile.write("#volume             energy               directory\n")
+        for dir in directories:
+            outcar_path = os.path.join(dir, 'OUTCAR')
+            if os.path.isfile(outcar_path):
+                with open(outcar_path, 'r') as f:
+                    lines = f.readlines()
+                    volume = None
+                    energy = None
+                    for line in lines:
+                        if "volume of cell" in line:
+                            volume = float(line.split()[-1])
+                        if "free  energy   TOTEN" in line:
+                            energy = float(line.split()[-2])
+                    if volume is not None and energy is not None:
+                        outfile.write(f"{volume:<15} {energy:<25} {dir}\n")
+                    else:
+                        print(f"Warning: Volume or energy not found in {outcar_path}")
+
+def submit_phonopy_jobs():
+    directories = get_directory_list()
+    for dir in directories:
+        if os.path.isdir(dir):
+            print(f"\n This is volume {dir}\n")
+            os.chdir(dir)
+            os.chdir('phonopy')
+            for i in range(NUM_JOBS):
+                job_dir = str(i)
+                if os.path.isdir(job_dir):
+                    os.chdir(job_dir)
+                    shutil.copy(FILES_VASP_DIR + '/vasp.job', '.')
+                    shutil.copy(FILES_VASP_DIR + '/INCAR', '.')
+                    print(f"This is job number {i}")
+                    if MODEP == "direct":
+                        subprocess.run(['sbatch', '-J', f"{dir}{i}", 'vasp.job'])
+                    elif MODEP == "steps":
+                        subprocess.run(['~/scripts/crear_incar123', 'INCAR'])
+                        shutil.copy(f'INCAR.{step}', 'INCAR')
+                        subprocess.run(['sbatch', '-J', f"{dir}_s{step}-{i}", 'vasp.job'])
+                    elif MODEP == "resubmit":
+                        resubmit_job = False
+                        # Check OUTCAR for "aborting loop because EDIFF is reached"
+                        if not os.path.isfile('OUTCAR') or "aborting loop because EDIFF is reached" not in open('OUTCAR').read():
+                            resubmit_job = True
+                        # Check latest slurm file for "error"
+                        slurm_files = [f for f in os.listdir() if f.startswith('slurm-')]
+                        if slurm_files:
+                            latest_slurm = max(slurm_files, key=os.path.getctime)
+                            if "error" in open(latest_slurm).read():
+                                resubmit_job = True
+                        if resubmit_job:
+                            subprocess.run(['sbatch', '-J', f"{dir}{i}", 'vasp.job'])
+                    os.chdir('..')
+            os.chdir('../..')
+
+def main():
+    global MODEP
+
+    parser = argparse.ArgumentParser(description="Script to manage VASP jobs.")
+    
+    # Define the argument 'mode' with choices
+    parser.add_argument('mode', choices=['create', 'submit', 'check', 'phonopy', 'create_ev', 'create_tp', 'submit_phonopy_jobs'],
+                        help="Mode of operation")
+    parser.add_argument('--modep', type=str, choices=['direct', 'steps', 'resubmit'], default='direct',
+                        help="Phonopy submission mode")
+
+    # Parse the arguments
+    args = parser.parse_args()
+    MODEP = args.modep
+
+    print(f"Running in mode: {args.mode}")
+
+    if args.mode == 'create':
+        create_directories()
+    elif args.mode == 'submit':
+        submit_jobs()
+    elif args.mode == 'check':
+        check_jobs()
+    elif args.mode == 'phonopy':
+        run_phonopy()
+    elif args.mode == 'create_ev':
+        create_ev()
+    elif args.mode == 'create_tp':
+        create_tp()
+    elif args.mode == 'submit_phonopy_jobs':
+        submit_phonopy_jobs()
+        print(f"Phonopy submission mode: {args.modep}")
+
+if __name__ == "__main__":
+    main()
+
