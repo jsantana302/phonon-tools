@@ -6,7 +6,7 @@ import argparse
 from pathlib import Path
 import re
 from phonon_tools import create_array_job, create_band_pdos_conf, detect_input_file
-from plot_phonons_simple_dos import main as plot_phonons_simple_dos
+from plotting.plot_phonons_simple_dos import main as plot_phonons_simple_dos
 
 
 
@@ -228,13 +228,13 @@ def post_mode(input_file, thermal_properties):
     if not os.path.exists("band-pdos.conf"):
         create_band_pdos_conf(outfile="band-pdos.conf")
 
-    run_cmd("phonopy --cp2k -c " + input_file +
+    run_cmd("phonopy --cp2k -c " + 'R2SCAN.inp' +
             " -p -s band-pdos.conf")
     #customize plot
     plot_phonons_simple_dos()
 
     if thermal_properties:
-        run_cmd("phonopy --cp2k -c " + input_file +
+        run_cmd("phonopy --cp2k -c " + 'R2SCAN.inp' +
                 " -t -s band-pdos.conf")
 
 

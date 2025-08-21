@@ -1,7 +1,6 @@
 #!/user/j.santanaandreo/u12658/miniconda3/envs/aim2dat/bin/python
 import os
 import shutil
-import subprocess
 import argparse
 import csv
 import glob
@@ -328,10 +327,10 @@ def phonopy_post():
 
         for subfolder in subfolders:
             # Check if FORCE_SETS file exists in the subfolder, skip if it is present
-            force_sets_path = os.path.join(subfolder, "FORCE_SETS")
-            if os.path.isfile(force_sets_path):
-                print(f"FORCE_SETS found in {subfolder}, skipping.")
-                continue     
+            #force_sets_path = os.path.join(subfolder, "FORCE_SETS")
+            #if os.path.isfile(force_sets_path):
+            #    print(f"FORCE_SETS found in {subfolder}, skipping.")
+            #    continue     
 
             print(f"Processing: {subfolder}")
             try:
@@ -345,10 +344,6 @@ def phonopy_post():
                 )
                 print(f"Running: {command_post}")
                 run_cmd(command_post)
-
-                command_plot = "python ~/scripts/plot_phonons_simple_dos.py"
-                print(f"Running: {command_plot}")
-                os.system(command_plot)
 
                 print(f"Finished post-processing and plotting in {subfolder}")
 
@@ -410,8 +405,8 @@ def qha_post(temp, pressure):
     try:
         os.chdir(thermal_properties_dir)
         run_cmd(cmd)
-        os.system(f"python ~/scripts/plot_helmholtz.py")
-        os.system(f"python ~/scripts/plot_thermal_prop.py")
+        os.system(f"python ~/scripts/plotting/plot_helmholtz.py")
+        os.system(f"python ~/scripts/plotting/plot_thermal_prop.py")
     finally:
         os.chdir(original_dir)
     

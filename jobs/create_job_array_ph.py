@@ -10,8 +10,8 @@ def main() -> None:
     p.add_argument("parallel", type=int, help="max concurrent jobs")
     args = p.parse_args()
 
-    if args.total < 1 or args.parallel < 1:
-        p.error("total and parallel must be >= 1")
+    if args.total < 0 or args.parallel < 1:
+        p.error("total must be >= 0 and parallel must be >= 1")
 
     tmpl = (
         "#!/bin/bash\n"
@@ -20,7 +20,7 @@ def main() -> None:
         "#SBATCH --nodes=3\n"
         "#SBATCH --ntasks-per-node=48\n"
         "#SBATCH --cpus-per-task=2\n"
-        "#SBATCH --array=1-{total}%{parallel}\n"
+        "#SBATCH --array=0-{total}%{parallel}\n"
         "#SBATCH --requeue\n\n"
         "export PREFERRED_SOFTWARE_STACK=nhr-lmod\n"
         "source /sw/etc/profile/profile.sh\n"
@@ -37,7 +37,7 @@ def main() -> None:
     with open("cp2k_array.job", "w", encoding="utf-8") as f:
         f.write(tmpl.format(total=args.total, parallel=args.parallel))
 
-    print(f"Wrote cp2k_array.job for 1-{args.total}%{args.parallel}")
+    print(f"Wrote cp2k_array.job ")
 
 
 if __name__ == "__main__":

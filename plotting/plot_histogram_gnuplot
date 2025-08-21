@@ -1,0 +1,13 @@
+#!/bin/bash
+# Simple gnuplot wrapper to plot histogram.dat to PNG
+
+gnuplot <<EOF
+set terminal pngcairo size 800,600 enhanced font 'Arial,12'
+set output 'histogram.png'
+set xlabel "x"
+set ylabel "y"
+set xrange [0:0.4]
+plot 'histogram.dat' every ::1 using 1:2 with lines title 'histogram'
+set output
+EOF
+
